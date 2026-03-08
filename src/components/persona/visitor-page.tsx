@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { ProfileHeader } from './profile-header'
 import { ChatMessages } from './chat-messages'
 import { ChatInput } from './chat-input'
 import { SuggestedQuestionsSheet } from './suggested-questions-sheet'
 import { InterviewerSettingsSheet } from './interviewer-settings-sheet'
 import { InterviewerConfigProvider, useInterviewerConfig } from '@/contexts/interviewer-config'
-import type { Persona } from '@/lib/types'
+import type { Persona, Citation, Document } from '@/lib/types'
 import type { Message } from './chat-bubble'
+import { DocumentCarousel } from './document-carousel'
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9)
@@ -20,13 +21,22 @@ function generateSessionId() {
 
 interface Props {
   persona: Persona
+  documents: Document[]
 }
 
-function VisitorPageInner({ persona }: Props) {
+function VisitorPageInner({ persona, documents }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const { config } = useInterviewerConfig()
   const sessionId = useRef(generateSessionId())
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // 채팅창 내부만 자동 스크롤 (페이지 스크롤 없음)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [messages])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -58,13 +68,63 @@ function VisitorPageInner({ persona }: Props) {
 
         const reader = res.body.getReader()
         const decoder = new TextDecoder()
+        let buffer = ''
+        // RAF 배치: 여러 글자를 한 프레임에 묶어 렌더링 블로킹 최소화
+        let pendingContent = ''
+        let rafId: number | null = null
 
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          const chunk = decoder.decode(value, { stream: true })
+
+          buffer += decoder.decode(value, { stream: true })
+          const events = buffer.split('\n\n')
+          buffer = events.pop() ?? ''
+
+          for (const event of events) {
+            const line = event.trim()
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6)
+            if (data === '[DONE]') break
+
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.type === 'cache_hit') {
+                setMessages((prev) =>
+                  prev.map((m) => m.id === assistantId ? { ...m, fromCache: true } : m)
+                )
+              } else if (parsed.type === 'citations') {
+                const citations: Citation[] = parsed.sources
+                setMessages((prev) =>
+                  prev.map((m) => m.id === assistantId ? { ...m, citations } : m)
+                )
+              } else if (parsed.type === 'text') {
+                pendingContent += parsed.content
+                if (rafId === null) {
+                  rafId = requestAnimationFrame(() => {
+                    const content = pendingContent
+                    pendingContent = ''
+                    rafId = null
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === assistantId ? { ...m, content: m.content + content } : m
+                      )
+                    )
+                  })
+                }
+              }
+            } catch {
+              // JSON 파싱 실패한 청크는 무시
+            }
+          }
+        }
+        // 스트림 종료 후 미처리 텍스트 flush
+        if (rafId !== null) cancelAnimationFrame(rafId)
+        if (pendingContent) {
           setMessages((prev) =>
-            prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m)
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: m.content + pendingContent } : m
+            )
           )
         }
       } catch (err) {
@@ -83,66 +143,41 @@ function VisitorPageInner({ persona }: Props) {
   )
 
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row bg-zinc-50 p-4 md:p-6 lg:p-8 gap-6 max-w-[1600px] mx-auto">
-      {/* Left Column (Profile & Settings) */}
-      <div className="w-full md:w-80 lg:w-96 shrink-0 flex flex-col gap-6">
-        <div className="bg-white rounded-[2rem] p-6 lg:p-8 shadow-sm border border-zinc-100 flex flex-col">
-          <ProfileHeader persona={persona} />
+    <div className="min-h-dvh md:h-dvh bg-zinc-50 p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto md:overflow-hidden">
+      <div className="flex flex-col md:flex-row gap-6 md:h-full">
+        {/* Left Column (Profile + Portfolio) */}
+        <div className="w-full md:w-80 lg:w-96 shrink-0 flex flex-col gap-6 md:overflow-y-auto">
+          <div className="bg-white rounded-[2rem] p-6 lg:p-8 shadow-sm border border-zinc-100 flex flex-col md:shrink-0">
+            <ProfileHeader persona={persona} />
+          </div>
+          <DocumentCarousel documents={documents} />
         </div>
 
-        {/* Visual References on Desktop (Left panel bottom optionally, or keep it under chat. User asked for bottom center)
-            Let's keep the user's specific spec "그 밑 가운데에는 관련한 레퍼런스가" -> bottom center.
-            Bottom center of the right side makes sense inside the chat flow constraint.
-        */}
-      </div>
-
-      {/* Right Column (Chat & References) */}
-      <div className="flex flex-1 flex-col overflow-hidden bg-white shadow-xl rounded-[2rem] border border-zinc-100 min-w-0 relative">
-        {/* Header for Settings */}
-        <div className="flex justify-between items-center p-4 border-b border-zinc-50">
-          <div className="font-semibold text-sm text-zinc-600">내 명함 AI</div>
-          <InterviewerSettingsSheet />
-        </div>
-
-        <div className="flex-1 flex flex-col min-h-0 relative">
-          <div className="flex-1 overflow-y-auto px-4 lg:px-6 pt-6 pb-40 scroll-smooth">
-            <ChatMessages messages={messages} />
-
-            {/* Visual References Area (Bottom Center) */}
-            {messages.length > 0 && (
-              <div className="mt-12 mb-8 flex flex-col items-center">
-                <div className="flex items-center gap-4 w-full max-w-2xl mb-6">
-                  <div className="h-px bg-zinc-100 flex-1"></div>
-                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest text-center">관련 레퍼런스</h3>
-                  <div className="h-px bg-zinc-100 flex-1"></div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full max-w-2xl">
-                  {/* Mock References */}
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="aspect-video bg-zinc-50 rounded-xl flex items-center justify-center border border-zinc-100 shadow-sm transition-all hover:shadow-md cursor-pointer hover:-translate-y-1">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="size-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
-                          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                        </div>
-                        <span className="text-xs font-medium text-zinc-500">포트폴리오 {i}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Right Column (Chat) - 모바일: 70dvh 고정 / 데스크톱: 뷰포트 채움 */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-white shadow-xl rounded-[2rem] border border-zinc-100 min-w-0 relative h-[70dvh] md:h-auto md:min-h-0">
+          {/* Header */}
+          <div className="flex justify-between items-center p-4 border-b border-zinc-50 shrink-0">
+            <div className="font-semibold text-sm text-zinc-600">내 명함 AI</div>
+            <InterviewerSettingsSheet />
           </div>
 
-          {/* Chat Input Area - Sticky Bottom Inside Container */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-6 px-4 md:px-8">
-            <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] border border-zinc-100">
-              <div className="flex items-center gap-2 px-3 pt-2">
-                <SuggestedQuestionsSheet
-                  questions={persona.suggestedQuestions}
-                  onSelect={sendMessage}
-                />
+          <div className="flex-1 flex flex-col min-h-0 relative">
+            {/* 스크롤은 이 div 안에서만 발생 */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 lg:px-6 pt-6 pb-40 scroll-smooth">
+              <ChatMessages messages={messages} />
+            </div>
+
+            {/* Chat Input Area - Sticky Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-6 px-4 md:px-8">
+              <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] border border-zinc-100">
+                <div className="flex items-center gap-2 px-3 pt-2">
+                  <SuggestedQuestionsSheet
+                    questions={persona.suggestedQuestions}
+                    onSelect={sendMessage}
+                  />
+                </div>
+                <ChatInput onSend={sendMessage} disabled={isLoading} />
               </div>
-              <ChatInput onSend={sendMessage} disabled={isLoading} />
             </div>
           </div>
         </div>
@@ -151,10 +186,10 @@ function VisitorPageInner({ persona }: Props) {
   )
 }
 
-export function VisitorPage({ persona }: Props) {
+export function VisitorPage({ persona, documents }: Props) {
   return (
     <InterviewerConfigProvider>
-      <VisitorPageInner persona={persona} />
+      <VisitorPageInner persona={persona} documents={documents} />
     </InterviewerConfigProvider>
   )
 }

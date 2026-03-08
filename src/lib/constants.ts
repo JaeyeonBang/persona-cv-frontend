@@ -1,6 +1,6 @@
 import type { PersonaConfig, InterviewerConfig } from './types'
 
-export const DEMO_USERNAME = 'demo'
+export const DEMO_USERNAME = 'demo-user'
 
 export const DEFAULT_INTERVIEWER_CONFIG: InterviewerConfig = {
   answerLength: 'medium',

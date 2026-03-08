@@ -6,9 +6,17 @@ import { ProfileSection } from '@/components/dashboard/profile-section'
 import { DocumentSection } from '@/components/dashboard/document-section'
 import { PersonaSection } from '@/components/dashboard/persona-section'
 import { SuggestedQuestionsSection } from '@/components/dashboard/suggested-questions-section'
+import { HistorySection } from '@/components/dashboard/history-section'
 import type { User, Document } from '@/lib/types'
 
-export default async function DashboardPage() {
+interface PageProps {
+  searchParams: Promise<{ tab?: string }>
+}
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const { tab } = await searchParams
+  const activeTab = tab === 'history' ? 'history' : 'settings'
+
   const user = (await ensureDemoUser()) as User
 
   const supabase = createAdminClient()
@@ -42,21 +50,66 @@ export default async function DashboardPage() {
         </div>
       </header>
 
+      {/* Tab nav */}
+      <div className="border-b border-zinc-100 bg-white">
+        <div className="mx-auto flex max-w-5xl gap-1 px-4 md:px-6">
+          <Link
+            href="/dashboard"
+            className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'settings'
+                ? 'border-zinc-800 text-zinc-800'
+                : 'border-transparent text-zinc-400 hover:text-zinc-600'
+            }`}
+          >
+            설정
+          </Link>
+          <Link
+            href="/dashboard?tab=history"
+            className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'history'
+                ? 'border-zinc-800 text-zinc-800'
+                : 'border-transparent text-zinc-400 hover:text-zinc-600'
+            }`}
+          >
+            대화 히스토리
+          </Link>
+        </div>
+      </div>
+
       {/* Content */}
       <main className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Left column */}
-          <div className="flex flex-col gap-6">
-            <ProfileSection user={user} />
-            <DocumentSection userId={user.id} initialDocuments={docs} />
-          </div>
+        {activeTab === 'settings' ? (
+          <>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Left column */}
+              <div className="flex flex-col gap-6">
+                <ProfileSection user={user} />
+                <DocumentSection userId={user.id} initialDocuments={docs} />
+              </div>
 
-          {/* Right column */}
-          <div className="flex flex-col gap-6">
-            <PersonaSection user={user} />
-            <SuggestedQuestionsSection user={user} />
-          </div>
-        </div>
+              {/* Right column */}
+              <div className="flex flex-col gap-6">
+                <PersonaSection user={user} />
+                <SuggestedQuestionsSection user={user} />
+              </div>
+            </div>
+
+            {/* 설정 완료 버튼 */}
+            <div className="mt-8 flex justify-center">
+              <Link
+                href={`/${DEMO_USERNAME}`}
+                className="inline-flex h-12 items-center gap-2 rounded-2xl bg-zinc-900 px-8 text-sm font-semibold text-white shadow-lg transition-all hover:bg-zinc-700 hover:shadow-xl"
+              >
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                설정 완료 — 채팅 시작하기
+              </Link>
+            </div>
+          </>
+        ) : (
+          <HistorySection userId={user.id} />
+        )}
       </main>
     </div>
   )

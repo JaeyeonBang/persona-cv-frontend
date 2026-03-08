@@ -13,11 +13,12 @@ export async function POST(req: Request) {
     return new Response(err, { status: upstream.status, headers: { 'Content-Type': 'application/json' } })
   }
 
-  // FastAPI의 스트리밍 응답을 그대로 브라우저로 전달
+  // FastAPI의 SSE 스트리밍 응답을 그대로 브라우저로 전달
   return new Response(upstream.body, {
     headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Type': 'text/event-stream; charset=utf-8',
       'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-cache',
     },
   })
 }

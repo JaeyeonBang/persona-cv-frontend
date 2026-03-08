@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import { ChatBubble, type Message } from './chat-bubble'
 
 interface Props {
@@ -8,12 +7,6 @@ interface Props {
 }
 
 export function ChatMessages({ messages }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-8">
@@ -25,11 +18,10 @@ export function ChatMessages({ messages }: Props) {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+    <div className="flex flex-1 flex-col gap-3 px-4 py-4">
       {messages.map((msg) => (
         <ChatBubble key={msg.id} message={msg} />
       ))}
-      <div ref={bottomRef} />
     </div>
   )
 }

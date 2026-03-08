@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { VisitorPage } from '@/components/persona/visitor-page'
 import { userToPersona } from '@/lib/user-to-persona'
-import type { User } from '@/lib/types'
+import type { User, Document } from '@/lib/types'
 
 interface Props {
   params: Promise<{ username: string }>
@@ -28,5 +28,17 @@ export default async function PersonaPage({ params }: Props) {
     )
   }
 
-  return <VisitorPage persona={userToPersona(user as User)} />
+  const { data: documents } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('status', 'done')
+    .order('created_at', { ascending: false })
+
+  return (
+    <VisitorPage
+      persona={userToPersona(user as User)}
+      documents={(documents ?? []) as Document[]}
+    />
+  )
 }

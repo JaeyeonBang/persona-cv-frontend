@@ -1,5 +1,12 @@
 export type PersonaPreset = 'professional' | 'friendly' | 'challenger'
 
+export type Citation = {
+  index: number
+  title: string
+  excerpt: string
+  url: string | null
+}
+
 /** Visitor 페이지에서 사용하는 공개 프로필 (User의 뷰 모델) */
 export type Persona = {
   username: string
