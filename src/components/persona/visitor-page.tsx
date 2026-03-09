@@ -42,6 +42,12 @@ function VisitorPageInner({ persona, documents }: Props) {
     async (text: string) => {
       if (isLoading) return
 
+      // 현재 완료된 메시지만 히스토리로 — 최근 10개 (5턴)
+      const history = messages
+        .filter((m) => !m.isStreaming && m.content)
+        .slice(-10)
+        .map((m) => ({ role: m.role, content: m.content }))
+
       const userMsg: Message = { id: generateId(), role: 'user', content: text }
       const assistantId = generateId()
       const assistantMsg: Message = { id: assistantId, role: 'assistant', content: '', isStreaming: true }
@@ -56,6 +62,7 @@ function VisitorPageInner({ persona, documents }: Props) {
           body: JSON.stringify({
             username: persona.username,
             question: text,
+            history,
             sessionId: sessionId.current,
             config,
           }),
@@ -92,6 +99,10 @@ function VisitorPageInner({ persona, documents }: Props) {
               if (parsed.type === 'cache_hit') {
                 setMessages((prev) =>
                   prev.map((m) => m.id === assistantId ? { ...m, fromCache: true } : m)
+                )
+              } else if (parsed.type === 'graph_fallback') {
+                setMessages((prev) =>
+                  prev.map((m) => m.id === assistantId ? { ...m, graphFallback: true } : m)
                 )
               } else if (parsed.type === 'citations') {
                 const citations: Citation[] = parsed.sources
@@ -139,7 +150,7 @@ function VisitorPageInner({ persona, documents }: Props) {
         setIsLoading(false)
       }
     },
-    [isLoading, config, persona.username]
+    [isLoading, config, persona.username, messages]
   )
 
   return (

@@ -9,6 +9,7 @@ export type Message = {
   isStreaming?: boolean
   citations?: Citation[]
   fromCache?: boolean
+  graphFallback?: boolean
 }
 
 interface Props {
@@ -64,6 +65,14 @@ export function ChatBubble({ message }: Props) {
               <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
             </svg>
             이전 답변
+          </div>
+        )}
+        {!isUser && message.graphFallback && !message.isStreaming && (
+          <div className="mt-2 inline-flex items-center gap-1 text-xs text-purple-600 font-medium">
+            <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Graph AI 보강
           </div>
         )}
         {message.isStreaming && (

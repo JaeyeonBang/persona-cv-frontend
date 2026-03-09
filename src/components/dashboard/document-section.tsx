@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useCallback, useOptimistic, useEffect } from 'react'
+import { useState, useRef, useCallback, useOptimistic, useEffect, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   addDocumentUrl,
   uploadPdfToStorage,
@@ -54,10 +55,11 @@ const TYPE_OPTIONS: { value: ActiveType; label: string; placeholder?: string }[]
 ]
 
 export function DocumentSection({ userId, initialDocuments }: Props) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
   const [documents, setDocuments] = useOptimistic(initialDocuments)
   const [pendingUrls, setPendingUrls] = useState<PendingUrl[]>([])
   const [pendingPdfs, setPendingPdfs] = useState<PendingPdf[]>([])
-  // ref로 cleanup에서 최신 상태 접근
   const pendingPdfsRef = useRef<PendingPdf[]>([])
 
   const [activeType, setActiveType] = useState<ActiveType>('pdf')
@@ -69,6 +71,55 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
   const [inputError, setInputError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // doc_id → 0~100 진행률
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({})
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // processing 중인 문서가 있으면 2초마다 폴링
+  useEffect(() => {
+    const processingIds = documents
+      .filter((d) => d.status === 'pending' || d.status === 'processing')
+      .map((d) => d.id)
+
+    if (processingIds.length === 0) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      return
+    }
+
+    async function poll() {
+      const results = await Promise.all(
+        processingIds.map((id) =>
+          fetch(`/api/document-progress/${id}`)
+            .then((r) => r.json())
+            .then((data) => ({ id, ...data }))
+            .catch(() => null)
+        )
+      )
+      setProgressMap((prev) => {
+        const next = { ...prev }
+        for (const r of results) {
+          if (r) next[r.id] = r.progress ?? 0
+        }
+        return next
+      })
+
+      // 처리 완료/오류 시 페이지 새로고침으로 최신 status 반영
+      const finished = results.filter((r) => r && (r.status === 'done' || r.status === 'error'))
+      if (finished.length > 0) {
+        router.refresh()
+      }
+    }
+
+    poll()
+    pollingRef.current = setInterval(poll, 2000)
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [documents])
 
   // pendingPdfs 변경 시 ref 동기화
   useEffect(() => {
@@ -127,12 +178,22 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
     setPendingPdfs((prev) => prev.filter((p) => p.localId !== localId))
   }
 
+  const AUTO_TITLE_TYPES: Exclude<DocumentType, 'pdf'>[] = ['github', 'linkedin']
+
+  function resolveTitle(type: Exclude<DocumentType, 'pdf'>, url: string, manualTitle: string): string {
+    if (!AUTO_TITLE_TYPES.includes(type)) return manualTitle
+    if (type === 'github') return `GitHub — ${url.replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '') || url}`
+    if (type === 'linkedin') return `LinkedIn — ${url.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '') || url}`
+    return manualTitle
+  }
+
   function handleStageUrl() {
-    const title = urlTitle.trim()
     const url = urlValue.trim()
+    const isAutoTitle = AUTO_TITLE_TYPES.includes(activeType as Exclude<DocumentType, 'pdf'>)
+    const title = isAutoTitle ? resolveTitle(activeType as Exclude<DocumentType, 'pdf'>, url, '') : urlTitle.trim()
     setInputError(null)
 
-    if (!title) { setInputError('제목을 입력해주세요'); return }
+    if (!isAutoTitle && !title) { setInputError('제목을 입력해주세요'); return }
     if (!url) { setInputError('URL을 입력해주세요'); return }
     try { new URL(url) } catch { setInputError('올바른 URL을 입력해주세요'); return }
 
@@ -188,19 +249,31 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
   }
 
   function triggerProcessing(documentIds: string[]) {
-    documentIds.forEach((id) => {
-      fetch('/api/process-document', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: id }),
-      }).catch(console.error)
+    if (!documentIds.length) return
+    fetch('/api/process-document', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentIds }),
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          console.error('[triggerProcessing] Backend error:', res.status, data)
+          setFeedback({ type: 'error', message: `문서 처리 요청 실패 (${res.status}): 백엔드 서버를 확인하세요.` })
+        }
+      })
+      .catch((err) => {
+        console.error('[triggerProcessing] Network error:', err)
+        setFeedback({ type: 'error', message: '백엔드 서버에 접속할 수 없습니다. 서버가 실행 중인지 확인하세요.' })
+      })
   }
 
-  async function handleDelete(id: string) {
-    setDocuments((prev) => prev.filter((d) => d.id !== id))
-    const result = await deleteDocument(id)
-    if (result.error) setDocuments(initialDocuments)
+  function handleDelete(id: string) {
+    startTransition(async () => {
+      setDocuments((prev) => prev.filter((d) => d.id !== id))
+      const result = await deleteDocument(id)
+      if (result.error) setDocuments(initialDocuments)
+    })
   }
 
   const pendingTotal = pendingPdfs.length + pendingUrls.length
@@ -216,11 +289,10 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
           <button
             key={opt.value}
             onClick={() => { setActiveType(opt.value); setInputError(null) }}
-            className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
-              activeType === opt.value
-                ? 'bg-zinc-800 text-white'
-                : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
-            }`}
+            className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${activeType === opt.value
+              ? 'bg-zinc-800 text-white'
+              : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
+              }`}
           >
             {opt.label}
           </button>
@@ -235,9 +307,8 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
             onDragLeave={() => setIsDragOver(false)}
             onClick={() => fileInputRef.current?.click()}
-            className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-10 cursor-pointer transition-colors ${
-              isDragOver ? 'border-zinc-500 bg-zinc-100' : 'border-zinc-200 bg-zinc-50 hover:border-zinc-400'
-            }`}
+            className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-10 cursor-pointer transition-colors ${isDragOver ? 'border-zinc-500 bg-zinc-100' : 'border-zinc-200 bg-zinc-50 hover:border-zinc-400'
+              }`}
           >
             {isPdfUploading ? (
               <p className="text-sm text-zinc-500">업로드 중...</p>
@@ -267,13 +338,15 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
       {/* URL Input (pdf 외 타입일 때 표시) */}
       {activeType !== 'pdf' && (
         <div className="mb-4 flex flex-col gap-3">
-          <input
-            type="text"
-            value={urlTitle}
-            onChange={(e) => setUrlTitle(e.target.value)}
-            placeholder="제목 (예: 포트폴리오 사이트)"
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm placeholder:text-zinc-400 outline-none focus:border-zinc-400 focus:bg-white transition-colors"
-          />
+          {!(['github', 'linkedin'] as DocumentType[]).includes(activeType) && (
+            <input
+              type="text"
+              value={urlTitle}
+              onChange={(e) => setUrlTitle(e.target.value)}
+              placeholder="제목 (예: 포트폴리오 사이트)"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm placeholder:text-zinc-400 outline-none focus:border-zinc-400 focus:bg-white transition-colors"
+            />
+          )}
           <div className="flex gap-2">
             <input
               type="url"
@@ -285,7 +358,7 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
             />
             <button
               onClick={handleStageUrl}
-              disabled={!urlTitle.trim() || !urlValue.trim()}
+              disabled={(['github', 'linkedin'] as DocumentType[]).includes(activeType) ? !urlValue.trim() : (!urlTitle.trim() || !urlValue.trim())}
               className="shrink-0 rounded-xl bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-200 disabled:opacity-40"
             >
               추가
@@ -345,29 +418,51 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
       {/* Saved document list */}
       {documents.length > 0 && (
         <ul className="mb-4 flex flex-col gap-2">
-          {documents.map((doc) => (
-            <li
-              key={doc.id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-zinc-700">{doc.title}</p>
-                {doc.source_url && (
-                  <p className="truncate text-xs text-zinc-400">{doc.source_url}</p>
+          {documents.map((doc) => {
+            const isActive = doc.status === 'pending' || doc.status === 'processing'
+            const pct = progressMap[doc.id] ?? 0
+            return (
+              <li
+                key={doc.id}
+                className="overflow-hidden rounded-2xl border border-zinc-100 bg-zinc-50"
+              >
+                {/* 프로그레스바 트랙 */}
+                {isActive && (
+                  <div className="h-0.5 w-full bg-zinc-100">
+                    <div
+                      className="h-full bg-blue-400 transition-all duration-700 ease-out"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
                 )}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLOR[doc.status]}`}>
-                  {STATUS_LABEL[doc.status]}
-                </span>
-                <button onClick={() => handleDelete(doc.id)} className="text-zinc-300 hover:text-red-400 transition-colors" aria-label="삭제">
-                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </li>
-          ))}
+
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-zinc-700">{doc.title}</p>
+                    {isActive ? (
+                      <p className="text-xs text-blue-400">
+                        {doc.status === 'pending' ? '대기 중...' : `처리 중 ${pct}%`}
+                      </p>
+                    ) : doc.status === 'error' && doc.error_message ? (
+                      <p className="truncate text-xs text-red-400" title={doc.error_message}>{doc.error_message}</p>
+                    ) : doc.source_url ? (
+                      <p className="truncate text-xs text-zinc-400">{doc.source_url}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLOR[doc.status]}`}>
+                      {STATUS_LABEL[doc.status]}
+                    </span>
+                    <button onClick={() => handleDelete(doc.id)} className="text-zinc-300 hover:text-red-400 transition-colors" aria-label="삭제">
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </li>
+            )
+          })}
         </ul>
       )}
 

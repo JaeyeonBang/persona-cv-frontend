@@ -1,6 +1,27 @@
 import { apiFetch } from '@/lib/api-client'
+import { RateLimiter, getClientIp } from '@/lib/rate-limit'
 
+const rateLimiter = new RateLimiter({ limit: 20, windowMs: 60_000 })
+
+// ─────────────────────────────────────────────
+// POST /api/chat — FastAPI 프록시
+// ─────────────────────────────────────────────
 export async function POST(req: Request) {
+  const ip = getClientIp(req)
+
+  if (!rateLimiter.check(ip)) {
+    return new Response(
+      JSON.stringify({ detail: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': '60',
+        },
+      },
+    )
+  }
+
   const body = await req.text()
 
   const upstream = await apiFetch('/api/chat', {
