@@ -44,3 +44,6 @@ bash.exe.stackdump
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright auth state
+e2e/.auth/

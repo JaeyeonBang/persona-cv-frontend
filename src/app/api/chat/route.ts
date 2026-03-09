@@ -1,6 +1,9 @@
 import { apiFetch } from '@/lib/api-client'
 import { RateLimiter, getClientIp } from '@/lib/rate-limit'
 
+// Vercel: 스트리밍 응답 시간 허용 (Pro: 300s, Hobby: 60s)
+export const maxDuration = 60
+
 const rateLimiter = new RateLimiter({ limit: 20, windowMs: 60_000 })
 
 // ─────────────────────────────────────────────
