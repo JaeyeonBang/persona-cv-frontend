@@ -47,3 +47,11 @@ next-env.d.ts
 
 # Playwright auth state
 e2e/.auth/
+
+# 임시/디버그 파일
+*.log
+check-db.ts
+docs.json
+rls-output.txt
+test-rls.ts
+/test-results/
