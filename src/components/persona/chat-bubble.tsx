@@ -2,11 +2,36 @@ import { cn } from '@/lib/utils'
 import type { Citation } from '@/lib/types'
 import { CitationPopover } from './citation-popover'
 
+const PHASE_LABELS: Record<string, string> = {
+  retrieval: '검색 중',
+  generating: '답변 생성 중',
+  factcheck: '교정 중',
+}
+
+function TypingIndicator({ phase }: { phase?: string }) {
+  const label = phase ? (PHASE_LABELS[phase] ?? '처리 중') : '처리 중'
+  return (
+    <span className="flex items-center gap-2 py-1">
+      <span className="flex items-center gap-1">
+        {[0, 150, 300].map((delay) => (
+          <span
+            key={delay}
+            className="size-1.5 rounded-full bg-zinc-400 animate-bounce"
+            style={{ animationDelay: `${delay}ms` }}
+          />
+        ))}
+      </span>
+      <span className="text-xs text-zinc-400">{label}</span>
+    </span>
+  )
+}
+
 export type Message = {
   id: string
   role: 'user' | 'assistant'
   content: string
   isStreaming?: boolean
+  phase?: 'retrieval' | 'generating' | 'factcheck'
   citations?: Citation[]
   fromCache?: boolean
   graphFallback?: boolean
@@ -75,7 +100,14 @@ export function ChatBubble({ message }: Props) {
             Graph AI 보강
           </div>
         )}
-        {message.isStreaming && (
+        {/* 타이핑 인디케이터: 내용 도착 전 */}
+        {message.isStreaming && !message.content && <TypingIndicator phase={message.phase} />}
+        {/* 교정 중 배지: 텍스트 도착 후 factcheck 단계 */}
+        {message.isStreaming && message.content && message.phase === 'factcheck' && (
+          <span className="ml-2 text-xs text-zinc-400 animate-pulse">교정 중...</span>
+        )}
+        {/* 스트리밍 커서: 내용 도착 후 (교정 전) */}
+        {message.isStreaming && message.content && message.phase !== 'factcheck' && (
           <span className="ml-1 inline-block animate-pulse text-zinc-400">▋</span>
         )}
       </div>

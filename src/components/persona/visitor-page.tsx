@@ -104,6 +104,10 @@ function VisitorPageInner({ persona, documents }: Props) {
                 setMessages((prev) =>
                   prev.map((m) => m.id === assistantId ? { ...m, graphFallback: true } : m)
                 )
+              } else if (parsed.type === 'status') {
+                setMessages((prev) =>
+                  prev.map((m) => m.id === assistantId ? { ...m, phase: parsed.phase } : m)
+                )
               } else if (parsed.type === 'citations') {
                 const citations: Citation[] = parsed.sources
                 setMessages((prev) =>
