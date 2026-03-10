@@ -7,7 +7,8 @@ import { DocumentSection } from '@/components/dashboard/document-section'
 import { PersonaSection } from '@/components/dashboard/persona-section'
 import { SuggestedQuestionsSection } from '@/components/dashboard/suggested-questions-section'
 import { HistorySection } from '@/components/dashboard/history-section'
-import type { User, Document } from '@/lib/types'
+import { PinnedQASection } from '@/components/dashboard/pinned-qa-section'
+import type { User, Document, PinnedQA } from '@/lib/types'
 
 interface PageProps {
   searchParams: Promise<{ tab?: string }>
@@ -43,6 +44,17 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false })
 
   const docs = (documents ?? []) as Document[]
+
+  const { data: pinnedQAData } = await supabase
+    .from('pinned_qa')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('display_order')
+
+  const pinnedQAItems = (pinnedQAData ?? []) as PinnedQA[]
+
+  // 최초 프로필 설정 완료 후 온보딩 Q&A 페이지로 안내
+  const isFirstProfile = !user.name || user.name.trim() === ''
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -107,7 +119,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Left column */}
               <div className="flex flex-col gap-6">
-                <ProfileSection user={user} />
+                <ProfileSection user={user} showOnboardingRedirect={isFirstProfile} />
                 <DocumentSection userId={user.id} initialDocuments={docs} />
               </div>
 
@@ -115,6 +127,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
               <div className="flex flex-col gap-6">
                 <PersonaSection user={user} />
                 <SuggestedQuestionsSection user={user} />
+                <PinnedQASection user={user} initialItems={pinnedQAItems} />
               </div>
             </div>
 

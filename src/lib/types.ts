@@ -56,6 +56,16 @@ export type User = {
   updated_at: string
 }
 
+export type PinnedQA = {
+  id: string
+  user_id: string
+  question: string
+  answer: string
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
 export type DocumentType = 'pdf' | 'url' | 'github' | 'linkedin' | 'other'
 export type DocumentStatus = 'pending' | 'processing' | 'done' | 'error'
 

@@ -1,15 +1,18 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { saveProfile, uploadPhoto } from '@/app/dashboard/actions'
 import type { User } from '@/lib/types'
 
 interface Props {
   user: User
+  showOnboardingRedirect?: boolean
 }
 
-export function ProfileSection({ user }: Props) {
+export function ProfileSection({ user, showOnboardingRedirect = false }: Props) {
+  const router = useRouter()
   const [name, setName] = useState(user.name)
   const [title, setTitle] = useState(user.title)
   const [bio, setBio] = useState(user.bio)
@@ -60,6 +63,12 @@ export function ProfileSection({ user }: Props) {
       if (result.error) throw new Error(result.error)
 
       setPhotoFile(null)
+
+      if (showOnboardingRedirect) {
+        router.push('/dashboard/onboarding')
+        return
+      }
+
       setFeedback({ type: 'success', message: '저장되었습니다' })
     } catch (err) {
       setFeedback({
