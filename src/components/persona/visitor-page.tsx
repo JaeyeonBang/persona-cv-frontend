@@ -110,8 +110,20 @@ function VisitorPageInner({ persona, documents }: Props) {
                 )
               } else if (parsed.type === 'citations') {
                 const citations: Citation[] = parsed.sources
+                // citations의 URL/제목으로 documents 매칭 → 인라인 카루셀용
+                const citedUrls = new Set(citations.map((c) => c.url).filter(Boolean))
+                const citedTitles = new Set(citations.map((c) => c.title))
+                const inlineDocuments = documents.filter(
+                  (doc) =>
+                    (doc.source_url && citedUrls.has(doc.source_url)) ||
+                    citedTitles.has(doc.title)
+                )
                 setMessages((prev) =>
-                  prev.map((m) => m.id === assistantId ? { ...m, citations } : m)
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, citations, inlineDocuments: inlineDocuments.length > 0 ? inlineDocuments : undefined }
+                      : m
+                  )
                 )
               } else if (parsed.type === 'text') {
                 pendingContent += parsed.content

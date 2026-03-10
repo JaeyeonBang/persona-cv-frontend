@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
-import type { Citation } from '@/lib/types'
+import type { Citation, Document } from '@/lib/types'
 import { CitationPopover } from './citation-popover'
+import { InlineChatCarousel } from './inline-chat-carousel'
 
 const PHASE_LABELS: Record<string, string> = {
   retrieval: '검색 중',
@@ -35,6 +36,7 @@ export type Message = {
   citations?: Citation[]
   fromCache?: boolean
   graphFallback?: boolean
+  inlineDocuments?: Document[]
 }
 
 interface Props {
@@ -109,6 +111,10 @@ export function ChatBubble({ message }: Props) {
         {/* 스트리밍 커서: 내용 도착 후 (교정 전) */}
         {message.isStreaming && message.content && message.phase !== 'factcheck' && (
           <span className="ml-1 inline-block animate-pulse text-zinc-400">▋</span>
+        )}
+        {/* 인라인 참고 자료 카루셀 (스트리밍 완료 후) */}
+        {!isUser && !message.isStreaming && message.inlineDocuments && message.inlineDocuments.length > 0 && (
+          <InlineChatCarousel documents={message.inlineDocuments} />
         )}
       </div>
     </div>
