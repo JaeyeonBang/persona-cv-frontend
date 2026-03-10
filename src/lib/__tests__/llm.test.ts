@@ -18,15 +18,15 @@ import type { InterviewerConfig } from '@/lib/types'
 
 const makeUser = (overrides: Partial<User> = {}): User => ({
   id: 'u1',
+  auth_id: null,
   username: 'tester',
   name: '홍길동',
   title: '시니어 개발자',
   bio: '10년차 풀스택',
   photo_url: null,
-  suggested_questions: [],
   persona_config: {
     preset: 'professional',
-    custom_prompt: null,
+    custom_prompt: '',
     default_interviewer: {
       answer_length: 'medium',
       language: 'ko',
@@ -34,8 +34,10 @@ const makeUser = (overrides: Partial<User> = {}): User => ({
       question_style: 'free',
       show_citation: true,
     },
+    suggested_questions: [],
   },
   created_at: '',
+  updated_at: '',
   ...overrides,
 })
 

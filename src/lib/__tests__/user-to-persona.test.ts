@@ -44,10 +44,10 @@ describe('userToPersona', () => {
     expect(persona.photoUrl).toBe('https://example.com/photo.jpg')
   })
 
-  it('photo_url이 null이면 빈 문자열로 변환한다', () => {
+  it('photo_url이 null이면 null로 변환한다', () => {
     const user: User = { ...BASE_USER, photo_url: null }
     const persona = userToPersona(user)
-    expect(persona.photoUrl).toBe('')
+    expect(persona.photoUrl).toBeNull()
   })
 
   it('suggested_questions를 suggestedQuestions로 매핑한다', () => {

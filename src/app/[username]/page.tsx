@@ -4,6 +4,10 @@ import { VisitorPage } from '@/components/persona/visitor-page'
 import { userToPersona } from '@/lib/user-to-persona'
 import type { User, Document } from '@/lib/types'
 
+interface Props {
+  params: Promise<{ username: string }>
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params
   const supabase = createAdminClient()
@@ -47,10 +51,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function extractStoragePath(url: string): string | null {
   const match = url.match(/\/object\/(?:public|sign)\/documents\/(.+?)(?:\?|$)/)
   return match ? match[1] : null
-}
-
-interface Props {
-  params: Promise<{ username: string }>
 }
 
 export default async function PersonaPage({ params }: Props) {

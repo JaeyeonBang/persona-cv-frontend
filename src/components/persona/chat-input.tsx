@@ -4,6 +4,8 @@ import { useState, useRef, type FormEvent, type KeyboardEvent } from 'react'
 import { SendHorizonalIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+const MAX_LENGTH = 1000
+
 interface Props {
   onSend: (text: string) => void
   disabled?: boolean
@@ -16,7 +18,7 @@ export function ChatInput({ onSend, disabled }: Props) {
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const trimmed = text.trim()
-    if (!trimmed || disabled) return
+    if (!trimmed || disabled || trimmed.length > MAX_LENGTH) return
     onSend(trimmed)
     setText('')
     if (textareaRef.current) {

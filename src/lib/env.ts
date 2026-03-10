@@ -14,6 +14,9 @@ const envSchema = z.object({
   OPENROUTER_MODEL: z.string().default('z-ai/glm-4.7-flash'),
   OPENROUTER_EMBEDDING_MODEL: z.string().default('openai/text-embedding-3-small'),
 
+  // 사이트 공개 URL — 비밀번호 재설정 이메일의 callback URL 생성에 사용
+  NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
+
   // FastAPI 백엔드
   FASTAPI_URL: z.string().url().default('http://localhost:8001'),
 

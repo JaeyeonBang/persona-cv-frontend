@@ -18,7 +18,7 @@ export default function LandingPage() {
           내 명함 만들기
         </Link>
         <Link
-          href="/demo-user"
+          href="/demo"
           className="border-border bg-background inline-flex h-10 items-center justify-center rounded-lg border px-6 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           데모 체험하기
