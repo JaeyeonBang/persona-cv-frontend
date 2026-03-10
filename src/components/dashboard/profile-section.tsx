@@ -65,7 +65,7 @@ export function ProfileSection({ user, showOnboardingRedirect = false }: Props) 
       setPhotoFile(null)
 
       if (showOnboardingRedirect) {
-        router.push('/dashboard/onboarding')
+        router.push('/dashboard/qa')
         return
       }
 

@@ -7,8 +7,7 @@ import { DocumentSection } from '@/components/dashboard/document-section'
 import { PersonaSection } from '@/components/dashboard/persona-section'
 import { SuggestedQuestionsSection } from '@/components/dashboard/suggested-questions-section'
 import { HistorySection } from '@/components/dashboard/history-section'
-import { PinnedQASection } from '@/components/dashboard/pinned-qa-section'
-import type { User, Document, PinnedQA } from '@/lib/types'
+import type { User, Document } from '@/lib/types'
 
 interface PageProps {
   searchParams: Promise<{ tab?: string }>
@@ -45,15 +44,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   const docs = (documents ?? []) as Document[]
 
-  const { data: pinnedQAData } = await supabase
-    .from('pinned_qa')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('display_order')
-
-  const pinnedQAItems = (pinnedQAData ?? []) as PinnedQA[]
-
-  // 최초 프로필 설정 완료 후 온보딩 Q&A 페이지로 안내
+  // 최초 프로필 설정 완료 후 Q&A 페이지로 안내
   const isFirstProfile = !user.name || user.name.trim() === ''
 
   return (
@@ -109,6 +100,12 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           >
             대화 히스토리
           </Link>
+          <Link
+            href="/dashboard/qa"
+            className="border-b-2 border-transparent px-4 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
+          >
+            예상 Q&A
+          </Link>
         </div>
       </div>
 
@@ -127,7 +124,6 @@ export default async function DashboardPage({ searchParams }: PageProps) {
               <div className="flex flex-col gap-6">
                 <PersonaSection user={user} />
                 <SuggestedQuestionsSection user={user} />
-                <PinnedQASection user={user} initialItems={pinnedQAItems} />
               </div>
             </div>
 

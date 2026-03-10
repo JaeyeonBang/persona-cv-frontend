@@ -15,7 +15,10 @@ export async function POST(req: Request) {
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action') // 'generate' | null
 
-  const path = action === 'generate' ? '/api/pinned-qa/generate' : '/api/pinned-qa'
+  const path =
+    action === 'generate' ? '/api/pinned-qa/generate' :
+    action === 'suggest'  ? '/api/pinned-qa/suggest' :
+    '/api/pinned-qa'
   const body = await req.text()
 
   const upstream = await apiFetch(path, { method: 'POST', body })
