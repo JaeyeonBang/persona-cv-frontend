@@ -7,7 +7,8 @@ import { DocumentSection } from '@/components/dashboard/document-section'
 import { PersonaSection } from '@/components/dashboard/persona-section'
 import { SuggestedQuestionsSection } from '@/components/dashboard/suggested-questions-section'
 import { HistorySection } from '@/components/dashboard/history-section'
-import type { User, Document } from '@/lib/types'
+import { QAClient } from '@/app/dashboard/qa/qa-client'
+import type { User, Document, PinnedQA } from '@/lib/types'
 
 interface PageProps {
   searchParams: Promise<{ tab?: string }>
@@ -15,7 +16,7 @@ interface PageProps {
 
 export default async function DashboardPage({ searchParams }: PageProps) {
   const { tab } = await searchParams
-  const activeTab = tab === 'history' ? 'history' : 'settings'
+  const activeTab = tab === 'history' ? 'history' : tab === 'qa' ? 'qa' : 'settings'
 
   const supabase = await createClient()
   const { data: authData, error: authError } = await supabase.auth.getUser()
@@ -44,8 +45,23 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   const docs = (documents ?? []) as Document[]
 
-  // 최초 프로필 설정 완료 후 Q&A 페이지로 안내
+  const { data: qaData } = await supabase
+    .from('pinned_qa')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('display_order')
+
+  const qaItems = (qaData ?? []) as PinnedQA[]
+
+  // 최초 프로필 설정 완료 후 Q&A 탭으로 안내
   const isFirstProfile = !user.name || user.name.trim() === ''
+
+  const tabClass = (t: string) =>
+    `border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+      activeTab === t
+        ? 'border-zinc-800 text-zinc-800'
+        : 'border-transparent text-zinc-400 hover:text-zinc-600'
+    }`
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -79,68 +95,57 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         </div>
       </header>
 
-      {/* Tab nav */}
+      {/* Tab nav — 설정 / 예상 Q&A / 대화 히스토리 */}
       <div className="border-b border-zinc-100 bg-white">
         <div className="mx-auto flex max-w-5xl gap-1 px-4 md:px-6">
-          <Link
-            href="/dashboard"
-            className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'settings'
-              ? 'border-zinc-800 text-zinc-800'
-              : 'border-transparent text-zinc-400 hover:text-zinc-600'
-              }`}
-          >
-            설정
-          </Link>
-          <Link
-            href="/dashboard?tab=history"
-            className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'history'
-              ? 'border-zinc-800 text-zinc-800'
-              : 'border-transparent text-zinc-400 hover:text-zinc-600'
-              }`}
-          >
-            대화 히스토리
-          </Link>
-          <Link
-            href="/dashboard/qa"
-            className="border-b-2 border-transparent px-4 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
-          >
-            예상 Q&A
-          </Link>
+          <Link href="/dashboard" className={tabClass('settings')}>설정</Link>
+          <Link href="/dashboard?tab=qa" className={tabClass('qa')}>예상 Q&A</Link>
+          <Link href="/dashboard?tab=history" className={tabClass('history')}>대화 히스토리</Link>
         </div>
       </div>
 
       {/* Content */}
       <main className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-        {activeTab === 'settings' ? (
+        {activeTab === 'settings' && (
           <>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Left column */}
+              {/* Left column — 마지막 섹션이 남은 공간을 채우도록 flex-1 */}
               <div className="flex flex-col gap-6">
                 <ProfileSection user={user} showOnboardingRedirect={isFirstProfile} />
-                <DocumentSection userId={user.id} initialDocuments={docs} />
+                <div className="flex-1 [&>section]:h-full">
+                  <DocumentSection userId={user.id} initialDocuments={docs} />
+                </div>
               </div>
 
               {/* Right column */}
               <div className="flex flex-col gap-6">
                 <PersonaSection user={user} />
-                <SuggestedQuestionsSection user={user} />
+                <div className="flex-1 [&>section]:h-full">
+                  <SuggestedQuestionsSection user={user} />
+                </div>
               </div>
             </div>
 
-            {/* 설정 완료 버튼 */}
+            {/* 설정 완료 → 예상 Q&A로 */}
             <div className="mt-8 flex justify-center">
               <Link
-                href={`/${user.username}`}
+                href="/dashboard?tab=qa"
                 className="inline-flex h-12 items-center gap-2 rounded-2xl bg-zinc-900 px-8 text-sm font-semibold text-white shadow-lg transition-all hover:bg-zinc-700 hover:shadow-xl"
               >
                 <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
-                설정 완료 — 채팅 시작하기
+                설정 완료 — 예상 Q&A 설정하기
               </Link>
             </div>
           </>
-        ) : (
+        )}
+
+        {activeTab === 'qa' && (
+          <QAClient user={user} initialItems={qaItems} portfolio={docs} />
+        )}
+
+        {activeTab === 'history' && (
           <HistorySection userId={user.id} />
         )}
       </main>
