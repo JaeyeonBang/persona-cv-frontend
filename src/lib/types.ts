@@ -1,5 +1,7 @@
 export type PersonaPreset = 'professional' | 'friendly' | 'challenger'
 
+export type Theme = 'default' | 'tech' | 'creative' | 'business'
+
 export type Citation = {
   index: number
   title: string
@@ -17,6 +19,7 @@ export type Persona = {
   photoUrl: string | null
   suggestedQuestions: string[]
   personaPreset: PersonaPreset
+  theme: Theme
 }
 
 /** 방문자가 설정하는 인터뷰어 설정 (클라이언트 상태, camelCase) */
@@ -52,6 +55,7 @@ export type User = {
   bio: string
   photo_url: string | null
   persona_config: PersonaConfig
+  theme?: Theme
   created_at: string
   updated_at: string
 }

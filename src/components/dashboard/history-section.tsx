@@ -1,12 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-
-interface ConversationRow {
-  id: string
-  session_id: string | null
-  question: string
-  answer: string
-  created_at: string
-}
+import {
+  buildDailyData,
+  buildFaq,
+  calcSatisfactionRate,
+  type ConversationRow,
+} from '@/lib/history-analytics'
 
 interface Props {
   userId: string
@@ -22,47 +20,67 @@ function formatDate(iso: string) {
   })
 }
 
-function buildFaq(conversations: ConversationRow[]): { question: string; count: number }[] {
-  const counts = new Map<string, number>()
-  for (const c of conversations) {
-    const key = c.question.trim().slice(0, 80)
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-  return [...counts.entries()]
-    .map(([question, count]) => ({ question, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-}
-
 export async function HistorySection({ userId }: Props) {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('conversations')
-    .select('id, session_id, question, answer, created_at')
+    .select('id, session_id, question, answer, feedback, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(200)
 
   const conversations = (data ?? []) as ConversationRow[]
-  const sessionCount = new Set(conversations.map((c) => c.session_id).filter(Boolean)).size
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('view_count')
+    .eq('id', userId)
+    .maybeSingle()
+  const viewCount = (userData as { view_count?: number } | null)?.view_count ?? 0
   const faq = buildFaq(conversations)
   const recent = conversations.slice(0, 50)
+  const daily = buildDailyData(conversations)
+  const maxDailyCount = Math.max(...daily.map((d) => d.count), 1)
+  const satisfactionRate = calcSatisfactionRate(conversations)
 
   return (
     <div className="flex flex-col gap-6">
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[1.5rem] border border-zinc-100 bg-white p-5 shadow-sm text-center">
           <p className="text-2xl font-bold text-zinc-800">{conversations.length}</p>
           <p className="mt-1 text-xs text-zinc-400">총 대화 수</p>
         </div>
         <div className="rounded-[1.5rem] border border-zinc-100 bg-white p-5 shadow-sm text-center">
-          <p className="text-2xl font-bold text-zinc-800">{sessionCount}</p>
-          <p className="mt-1 text-xs text-zinc-400">방문 세션 수</p>
+          <p className="text-2xl font-bold text-zinc-800">{viewCount.toLocaleString()}</p>
+          <p className="mt-1 text-xs text-zinc-400">페이지 뷰</p>
         </div>
-        <div className="hidden rounded-[1.5rem] border border-zinc-100 bg-white p-5 shadow-sm text-center sm:block">
+        <div className="rounded-[1.5rem] border border-zinc-100 bg-white p-5 shadow-sm text-center">
           <p className="text-2xl font-bold text-zinc-800">{faq.length > 0 ? faq[0].count : 0}</p>
           <p className="mt-1 text-xs text-zinc-400">최다 질문 횟수</p>
+        </div>
+        <div className="rounded-[1.5rem] border border-zinc-100 bg-white p-5 shadow-sm text-center">
+          <p className="text-2xl font-bold text-zinc-800">
+            {satisfactionRate != null ? `${satisfactionRate}%` : '—'}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">만족도</p>
+        </div>
+      </div>
+
+      {/* 일별 대화 추이 */}
+      <div className="rounded-[1.5rem] border border-zinc-100 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-sm font-semibold text-zinc-800">최근 7일 대화 추이</h2>
+        <div className="flex items-end gap-2 h-20">
+          {daily.map((d) => (
+            <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
+              <span className="text-xs text-zinc-500 font-medium">{d.count > 0 ? d.count : ''}</span>
+              <div
+                className="w-full rounded-t-md bg-zinc-800 transition-all"
+                style={{ height: `${Math.max((d.count / maxDailyCount) * 56, d.count > 0 ? 4 : 2)}px` }}
+              />
+              <span className="text-[10px] text-zinc-400">{d.label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -97,7 +115,11 @@ export async function HistorySection({ userId }: Props) {
               <li key={c.id} className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <p className="line-clamp-1 text-xs font-medium text-zinc-700">{c.question}</p>
-                  <time className="shrink-0 text-xs text-zinc-400">{formatDate(c.created_at)}</time>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {c.feedback === 1 && <span className="text-xs text-emerald-600">👍</span>}
+                    {c.feedback === -1 && <span className="text-xs text-red-500">👎</span>}
+                    <time className="text-xs text-zinc-400">{formatDate(c.created_at)}</time>
+                  </div>
                 </div>
                 <p className="line-clamp-2 text-xs text-zinc-500">{c.answer}</p>
               </li>

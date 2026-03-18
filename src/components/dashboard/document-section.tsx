@@ -280,7 +280,7 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
   const selectedOption = TYPE_OPTIONS.find((o) => o.value === activeType)!
 
   return (
-    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm">
+    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm flex flex-col h-full">
       <h2 className="text-lg font-semibold text-zinc-800 mb-6">문서 / 링크</h2>
 
       {/* Type selector */}
@@ -368,6 +368,9 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
       )}
 
       {inputError && <p className="mb-3 text-sm text-red-500">{inputError}</p>}
+
+      {/* Scrollable document lists */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
 
       {/* Pending list (미저장) */}
       {pendingTotal > 0 && (
@@ -469,6 +472,8 @@ export function DocumentSection({ userId, initialDocuments }: Props) {
       {documents.length === 0 && pendingTotal === 0 && (
         <p className="mb-4 py-4 text-center text-sm text-zinc-300">등록된 문서가 없습니다</p>
       )}
+
+      </div>{/* end scrollable lists */}
 
       {feedback && (
         <p className={`mb-4 text-sm ${feedback.type === 'error' ? 'text-red-500' : 'text-emerald-600'}`}>

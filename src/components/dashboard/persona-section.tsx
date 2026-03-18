@@ -64,9 +64,10 @@ export function PersonaSection({ user }: Props) {
   }
 
   return (
-    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm">
+    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm flex flex-col h-full">
       <h2 className="text-lg font-semibold text-zinc-800 mb-6">페르소나 설정</h2>
 
+      <div className="flex-1 overflow-y-auto">
       {/* Preset buttons */}
       <div className="mb-6">
         <p className="mb-3 text-xs font-medium text-zinc-500">말투 프리셋</p>
@@ -167,11 +168,12 @@ export function PersonaSection({ user }: Props) {
           {feedback.message}
         </p>
       )}
+      </div>
 
       <button
         onClick={handleSave}
         disabled={isSaving}
-        className="w-full rounded-2xl bg-zinc-800 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="mt-4 w-full rounded-2xl bg-zinc-800 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {isSaving ? '저장 중...' : '저장'}
       </button>

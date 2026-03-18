@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { apiFetch } from '@/lib/api-client'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { VisitorPage } from '@/components/persona/visitor-page'
 import { userToPersona } from '@/lib/user-to-persona'
@@ -94,6 +95,9 @@ export default async function PersonaPage({ params }: Props) {
       return data?.signedUrl ? { ...doc, source_url: data.signedUrl } : doc
     })
   )
+
+  // 방문자 수 비동기 증가 (실패해도 페이지 렌더링에 영향 없음)
+  apiFetch(`/api/views/${username}`, { method: 'POST' }).catch(() => {})
 
   return (
     <VisitorPage

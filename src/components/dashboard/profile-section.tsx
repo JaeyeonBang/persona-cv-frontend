@@ -65,7 +65,7 @@ export function ProfileSection({ user, showOnboardingRedirect = false }: Props) 
       setPhotoFile(null)
 
       if (showOnboardingRedirect) {
-        router.push('/dashboard/qa')
+        router.push('/dashboard?tab=qa')
         return
       }
 
@@ -81,9 +81,10 @@ export function ProfileSection({ user, showOnboardingRedirect = false }: Props) 
   }
 
   return (
-    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm">
+    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm flex flex-col h-full">
       <h2 className="text-lg font-semibold text-zinc-800 mb-6">기본 정보</h2>
 
+      <div className="flex-1 overflow-y-auto">
       {/* Photo upload */}
       <div className="mb-6 flex flex-col items-center gap-2">
         <div
@@ -140,6 +141,7 @@ export function ProfileSection({ user, showOnboardingRedirect = false }: Props) 
           {feedback.message}
         </p>
       )}
+      </div>
 
       <button
         onClick={handleSave}

@@ -50,11 +50,12 @@ export function SuggestedQuestionsSection({ user }: Props) {
   }
 
   return (
-    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm">
+    <section className="bg-white rounded-[2rem] p-6 lg:p-8 border border-zinc-100 shadow-sm flex flex-col h-full">
       <h2 className="text-lg font-semibold text-zinc-800 mb-6">추천 질문</h2>
 
-      {/* Question list */}
-      <ul className="mb-4 flex flex-col gap-2">
+      {/* Question list — scrollable */}
+      <div className="flex-1 min-h-0 overflow-y-auto mb-4">
+      <ul className="flex flex-col gap-2">
         {questions.map((q, i) => (
           <li
             key={i}
@@ -76,6 +77,7 @@ export function SuggestedQuestionsSection({ user }: Props) {
           <li className="py-4 text-center text-sm text-zinc-300">추가된 질문이 없습니다</li>
         )}
       </ul>
+      </div>{/* end scrollable */}
 
       {/* Add input */}
       <div className="flex gap-2">

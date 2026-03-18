@@ -14,6 +14,7 @@ export const DUMMY_PERSONA: Persona = {
     '앞으로의 커리어 방향은?',
   ],
   personaPreset: 'friendly',
+  theme: 'default',
 }
 
 // 더미 답변 생성 (Phase 4 전까지 사용)

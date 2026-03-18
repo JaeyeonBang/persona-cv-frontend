@@ -4,9 +4,10 @@ import { ChatBubble, type Message } from './chat-bubble'
 
 interface Props {
   messages: Message[]
+  onFeedback?: (conversationId: string, feedback: 1 | -1) => void
 }
 
-export function ChatMessages({ messages }: Props) {
+export function ChatMessages({ messages, onFeedback }: Props) {
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-8">
@@ -20,7 +21,7 @@ export function ChatMessages({ messages }: Props) {
   return (
     <div className="flex flex-1 flex-col gap-3 px-4 py-4">
       {messages.map((msg) => (
-        <ChatBubble key={msg.id} message={msg} />
+        <ChatBubble key={msg.id} message={msg} onFeedback={onFeedback} />
       ))}
     </div>
   )

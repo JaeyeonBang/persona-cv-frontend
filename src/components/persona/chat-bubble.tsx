@@ -1,3 +1,5 @@
+'use client'
+
 import { cn } from '@/lib/utils'
 import type { Citation, Document } from '@/lib/types'
 import { CitationPopover } from './citation-popover'
@@ -37,10 +39,13 @@ export type Message = {
   fromCache?: boolean
   graphFallback?: boolean
   inlineDocuments?: Document[]
+  conversationId?: string
+  feedback?: 1 | -1 | null
 }
 
 interface Props {
   message: Message
+  onFeedback?: (conversationId: string, feedback: 1 | -1) => void
 }
 
 /** "[1]", "[2]" 마커를 CitationPopover 아이콘으로 치환해서 렌더링 */
@@ -65,7 +70,52 @@ function AssistantContent({ content, citations }: { content: string; citations: 
   )
 }
 
-export function ChatBubble({ message }: Props) {
+function FeedbackButtons({
+  conversationId,
+  feedback,
+  onFeedback,
+}: {
+  conversationId: string
+  feedback?: 1 | -1 | null
+  onFeedback: (id: string, fb: 1 | -1) => void
+}) {
+  return (
+    <div className="mt-2 flex items-center gap-1.5">
+      <button
+        onClick={() => onFeedback(conversationId, 1)}
+        className={cn(
+          'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs transition-colors',
+          feedback === 1
+            ? 'bg-emerald-100 text-emerald-700'
+            : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600',
+        )}
+        aria-label="도움이 됐어요"
+      >
+        <svg className="size-3" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+        </svg>
+        {feedback === 1 && <span>좋아요</span>}
+      </button>
+      <button
+        onClick={() => onFeedback(conversationId, -1)}
+        className={cn(
+          'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs transition-colors',
+          feedback === -1
+            ? 'bg-red-100 text-red-700'
+            : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600',
+        )}
+        aria-label="별로예요"
+      >
+        <svg className="size-3" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
+        </svg>
+        {feedback === -1 && <span>별로예요</span>}
+      </button>
+    </div>
+  )
+}
+
+export function ChatBubble({ message, onFeedback }: Props) {
   const isUser = message.role === 'user'
 
   return (
@@ -115,6 +165,14 @@ export function ChatBubble({ message }: Props) {
         {/* 인라인 참고 자료 카루셀 (스트리밍 완료 후) */}
         {!isUser && !message.isStreaming && message.inlineDocuments && message.inlineDocuments.length > 0 && (
           <InlineChatCarousel documents={message.inlineDocuments} />
+        )}
+        {/* 피드백 버튼: 완료된 어시스턴트 메시지에만 표시 */}
+        {!isUser && !message.isStreaming && message.content && message.conversationId && onFeedback && (
+          <FeedbackButtons
+            conversationId={message.conversationId}
+            feedback={message.feedback}
+            onFeedback={onFeedback}
+          />
         )}
       </div>
     </div>

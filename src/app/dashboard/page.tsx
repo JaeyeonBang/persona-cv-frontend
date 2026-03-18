@@ -8,6 +8,9 @@ import { PersonaSection } from '@/components/dashboard/persona-section'
 import { SuggestedQuestionsSection } from '@/components/dashboard/suggested-questions-section'
 import { HistorySection } from '@/components/dashboard/history-section'
 import { QAClient } from '@/app/dashboard/qa/qa-client'
+import { QRShareSection } from '@/components/dashboard/qr-share-section'
+import { ProfileCompletenessCard } from '@/components/dashboard/profile-completeness-card'
+import { ThemeSection } from '@/components/dashboard/theme-section'
 import type { User, Document, PinnedQA } from '@/lib/types'
 
 interface PageProps {
@@ -108,22 +111,29 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       <main className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
         {activeTab === 'settings' && (
           <>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Left column — 마지막 섹션이 남은 공간을 채우도록 flex-1 */}
-              <div className="flex flex-col gap-6">
-                <ProfileSection user={user} showOnboardingRedirect={isFirstProfile} />
-                <div className="flex-1 [&>section]:h-full">
-                  <DocumentSection userId={user.id} initialDocuments={docs} />
-                </div>
+            <ProfileCompletenessCard user={user} docs={docs} qaItems={qaItems} />
+            <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-6 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
+              {/* Row 1, Col 1 */}
+              <ProfileSection user={user} showOnboardingRedirect={isFirstProfile} />
+
+              {/* Row 1, Col 2 */}
+              <PersonaSection user={user} />
+
+              {/* Row 2, Col 1 — h-full fills remaining row height */}
+              <div className="min-h-[320px] [&>section]:h-full">
+                <DocumentSection userId={user.id} initialDocuments={docs} />
               </div>
 
-              {/* Right column */}
-              <div className="flex flex-col gap-6">
-                <PersonaSection user={user} />
-                <div className="flex-1 [&>section]:h-full">
-                  <SuggestedQuestionsSection user={user} />
-                </div>
+              {/* Row 2, Col 2 */}
+              <div className="min-h-[320px] [&>section]:h-full">
+                <SuggestedQuestionsSection user={user} />
               </div>
+            </div>
+
+            {/* QR 공유 + 테마 */}
+            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <QRShareSection username={user.username} />
+              <ThemeSection userId={user.id} currentTheme={user.theme ?? 'default'} />
             </div>
 
             {/* 설정 완료 → 예상 Q&A로 */}

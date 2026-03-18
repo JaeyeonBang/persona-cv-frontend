@@ -3,7 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import type { PersonaConfig, DocumentType } from '@/lib/types'
+import type { PersonaConfig, DocumentType, Theme } from '@/lib/types'
 import { DEMO_USERNAME, DEFAULT_PERSONA_CONFIG } from '@/lib/constants'
 import { sanitizeStorageKey } from '@/lib/sanitize-filename'
 import { validatePdfFile, validateImageFile } from '@/lib/validations'
@@ -207,6 +207,26 @@ export async function savePersonaConfig(
   const { error } = await supabase
     .from('users')
     .update({ persona_config: config })
+    .eq('id', userId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard')
+  return {}
+}
+
+// ─── Theme ────────────────────────────────────────────────
+
+export async function saveTheme(
+  userId: string,
+  theme: Theme,
+): Promise<{ error?: string }> {
+  if (!userId) return { error: '잘못된 요청입니다' }
+
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('users')
+    .update({ theme })
     .eq('id', userId)
 
   if (error) return { error: error.message }

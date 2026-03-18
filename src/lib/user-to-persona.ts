@@ -1,5 +1,4 @@
-import type { User } from '@/lib/types'
-import type { Persona } from '@/lib/types'
+import type { User, Persona } from '@/lib/types'
 
 export function userToPersona(user: User): Persona {
   return {
@@ -10,5 +9,6 @@ export function userToPersona(user: User): Persona {
     photoUrl: user.photo_url ?? null,
     suggestedQuestions: user.persona_config.suggested_questions,
     personaPreset: user.persona_config.preset,
+    theme: user.theme ?? 'default',
   }
 }
