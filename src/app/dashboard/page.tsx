@@ -156,7 +156,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         )}
 
         {activeTab === 'history' && (
-          <HistorySection userId={user.id} />
+          <HistorySection userId={user.id} username={user.username} />
         )}
       </main>
     </div>

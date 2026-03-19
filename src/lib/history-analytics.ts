@@ -6,6 +6,7 @@ export interface ConversationRow {
   question: string
   answer: string
   feedback: number | null
+  is_cached: boolean
   created_at: string
 }
 

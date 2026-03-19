@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { HistoryClient } from './history-client'
 import {
   buildDailyData,
   buildFaq,
@@ -8,23 +9,14 @@ import {
 
 interface Props {
   userId: string
+  username: string
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleString('ko-KR', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-export async function HistorySection({ userId }: Props) {
+export async function HistorySection({ userId, username }: Props) {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('conversations')
-    .select('id, session_id, question, answer, feedback, created_at')
+    .select('id, session_id, question, answer, feedback, is_cached, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(200)
@@ -45,6 +37,8 @@ export async function HistorySection({ userId }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Section header */}
+      <h2 className="text-sm font-semibold text-zinc-800">대화 히스토리</h2>
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[1.5rem] border border-zinc-100 bg-white p-5 shadow-sm text-center">
@@ -100,33 +94,8 @@ export async function HistorySection({ userId }: Props) {
         </div>
       )}
 
-      {/* Recent conversations */}
-      <div className="rounded-[1.5rem] border border-zinc-100 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-800">최근 대화</h2>
-          <span className="text-xs text-zinc-400">{recent.length}건</span>
-        </div>
-
-        {recent.length === 0 ? (
-          <p className="py-8 text-center text-sm text-zinc-400">아직 대화 기록이 없습니다.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {recent.map((c) => (
-              <li key={c.id} className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <p className="line-clamp-1 text-xs font-medium text-zinc-700">{c.question}</p>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {c.feedback === 1 && <span className="text-xs text-emerald-600">👍</span>}
-                    {c.feedback === -1 && <span className="text-xs text-red-500">👎</span>}
-                    <time className="text-xs text-zinc-400">{formatDate(c.created_at)}</time>
-                  </div>
-                </div>
-                <p className="line-clamp-2 text-xs text-zinc-500">{c.answer}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {/* Recent conversations — interactive (delete / edit / clear) */}
+      <HistoryClient initialConversations={recent} userId={userId} username={username} />
     </div>
   )
 }

@@ -63,6 +63,7 @@ interface Props {
 
 function VisitorPageInner({ persona, documents }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [copied, setCopied] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { config } = useInterviewerConfig()
   const sessionId = useRef(generateSessionId())
@@ -92,6 +93,17 @@ function VisitorPageInner({ persona, documents }: Props) {
       // 피드백 저장 실패는 UX에 영향 없이 조용히 처리
     }
   }, [])
+
+  const handleShare = useCallback(async () => {
+    const url = typeof window !== 'undefined' ? window.location.href : `/${persona.username}`
+    const shareData = { title: `${persona.name}의 AI 명함`, url }
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try { await navigator.share(shareData); return } catch { /* 취소 */ }
+    }
+    await navigator.clipboard.writeText(url).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [persona.username, persona.name])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -251,7 +263,25 @@ function VisitorPageInner({ persona, documents }: Props) {
           {/* Header */}
           <div className={`flex justify-between items-center p-4 shrink-0 ${styles.chatHeader}`}>
             <div className={`font-semibold text-sm ${styles.chatHeaderText}`}>내 명함 AI</div>
-            <InterviewerSettingsSheet />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                aria-label="명함 공유"
+                className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50"
+              >
+                {copied ? (
+                  <svg className="size-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                )}
+                {copied ? '복사됨' : '공유'}
+              </button>
+              <InterviewerSettingsSheet />
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 relative">
